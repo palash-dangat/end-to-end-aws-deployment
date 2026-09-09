@@ -77,6 +77,9 @@ A production-style, end-to-end cloud infrastructure project built on AWS, provis
 
 This project is split across two repositories by design — infrastructure and application code are decoupled, matching real-world DevOps practice:
 
+- 📦 **This repo** — Infrastructure as Code (Terraform)
+- 🚀 **[app-deployment-proj](https://github.com/ashone8/app-deployment-proj.git)** — Frontend + backend application code and the GitHub Actions CI/CD pipeline that deploys into this infrastructure
+
 ```
 aws-terraform-project/     → Infrastructure as Code (this repo)
 ├── providers.tf
