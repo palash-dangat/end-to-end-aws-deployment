@@ -38,3 +38,8 @@ resource "aws_iam_instance_profile" "ec2_profile" {
   name = "ec2-backend-instance-profile"
   role = aws_iam_role.ec2_role.name
 }
+
+resource "aws_iam_role_policy_attachment" "attach_ssm" {
+  role       = aws_iam_role.ec2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}

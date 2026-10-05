@@ -1,7 +1,7 @@
 resource "aws_db_subnet_group" "rds_subnet_group" {
   name       = "rds-subnet-group"
   subnet_ids = [aws_subnet.private_1.id, aws_subnet.private_2.id]
-  tags = { Name = "rds-subnet-group" }
+  tags       = { Name = "rds-subnet-group" }
 }
 
 resource "aws_security_group" "rds_sg" {
@@ -33,7 +33,7 @@ resource "aws_db_instance" "app_db" {
   allocated_storage      = 20
   db_name                = "appdb"
   username               = "admin"
-  password               = random_password.db_password.result   # yeh line change hui
+  password               = random_password.db_password.result # yeh line change hui
   db_subnet_group_name   = aws_db_subnet_group.rds_subnet_group.name
   vpc_security_group_ids = [aws_security_group.rds_sg.id]
   multi_az               = true

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>My App</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #0f172a; color: #fff; text-align: center; padding: 80px 20px; }
+    h1 { font-size: 2.5rem; color: #38bdf8; }
+    p { color: #94a3b8; font-size: 1.1rem; }
+    .card { background: #1e293b; padding: 30px; border-radius: 12px; max-width: 500px; margin: 30px auto; }
+    button { background: #38bdf8; border: none; padding: 12px 24px; border-radius: 8px; color: #0f172a; font-weight: bold; cursor: pointer; }
+    #result { margin-top: 20px; color: #4ade80; }
+  </style>
+</head>
+<body>
+  <h1>🚀 Scalable Cloud App</h1>
+  <p>Deployed via Terraform on AWS — S3 + CloudFront + ALB + EC2 + RDS</p>
+
+  <div class="card">
+    <p>Backend Health Check</p>
+    <button onclick="checkHealth()">Check Backend Status</button>
+    <div id="result"></div>
+  </div>
+
+  <script>
+    async function checkHealth() {
+      const result = document.getElementById('result');
+      result.innerText = "Checking...";
+      try {
+        const res = await fetch('/api/health');
+        const data = await res.json();
+        result.innerText = "✅ Backend says: " + data.message;
+      } catch (err) {
+        result.innerText = "❌ Could not reach backend";
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 resource "aws_s3_bucket" "frontend" {
-  bucket = "palashhh18-frontend-app-bucket"  # yeh naam globally unique hona chahiye, change kar de kuch unique add karke
-  tags = { Name = "frontend-bucket" }
+  bucket = "palashhh18-frontend-app-bucket" # yeh naam globally unique hona chahiye, change kar de kuch unique add karke
+  tags   = { Name = "frontend-bucket" }
 }
 
 resource "aws_s3_bucket_public_access_block" "frontend_access" {
@@ -26,7 +26,7 @@ resource "aws_s3_bucket_website_configuration" "frontend_website" {
 
 
 resource "aws_s3_bucket_policy" "frontend_policy" {
-  bucket = aws_s3_bucket.frontend.id
+  bucket     = aws_s3_bucket.frontend.id
   depends_on = [aws_s3_bucket_public_access_block.frontend_access]
 
   policy = jsonencode({

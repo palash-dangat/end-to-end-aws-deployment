@@ -1,0 +1,22 @@
+name: CD
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["app/**"]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: ap-south-1
+    steps:
+      - uses: actions/checkout@v4
+      - run: aws s3 sync app/frontend s3://${{ secrets.S3_BUCKET_NAME }} --delete
+      - run: aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
+      - run: |
+          aws ssm send-command \
+            --document-name AWS-RunShellScript \
+            --targets "Key=tag:aws:autoscaling:groupName,Values=app-asg" \
+            --parameters 'commands=["sudo mkdir -p /opt/app","cd /opt/app","sudo git config --global --add safe.directory /opt/app","sudo git pull || sudo git clone https://github.com/palash-dangat/end-to-end-aws-deployment.git .","cd app/backend","sudo npm install","sudo pm2 delete app || true","sudo pm2 start server.js --name app"]'

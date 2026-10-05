@@ -1,6 +1,6 @@
 # S3 Bucket 
 resource "aws_s3_bucket" "trail_logs" {
-  bucket = "palashhh18-cloudtrail-logs"   # globally unique naam rakh
+  bucket = "palashhh18-cloudtrail-logs"
   tags   = { Name = "cloudtrail-logs-bucket" }
 }
 

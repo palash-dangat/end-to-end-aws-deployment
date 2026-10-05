@@ -22,7 +22,7 @@ resource "aws_launch_template" "app_lt" {
 
   tag_specifications {
     resource_type = "instance"
-    tags = { Name = "asg-backend-instance" }
+    tags          = { Name = "asg-backend-instance" }
   }
 }
 
@@ -49,7 +49,7 @@ resource "aws_autoscaling_group" "app_asg" {
 resource "aws_autoscaling_policy" "cpu_scaling" {
   name                   = "cpu-target-tracking"
   autoscaling_group_name = aws_autoscaling_group.app_asg.name
-  policy_type             = "TargetTrackingScaling"
+  policy_type            = "TargetTrackingScaling"
 
   target_tracking_configuration {
     predefined_metric_specification {
