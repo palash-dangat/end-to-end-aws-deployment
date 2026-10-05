@@ -1,159 +1,80 @@
-# End-to-End AWS Deployment – Scalable & Secure Web Application
+# End-to-End AWS Deployment with Terraform
 
-A production-style, end-to-end cloud infrastructure project built on AWS, provisioned entirely with **Terraform** and deployed via **GitHub Actions CI/CD**. This project demonstrates a real-world 3-tier architecture: a static frontend served through a CDN, a scalable backend running behind a load balancer, and a Multi-AZ managed database — all inside a custom-built, secure VPC.
+A 3-tier web application on AWS, provisioned with Terraform and deployed with GitHub Actions.
 
----
+> **Status:** the infrastructure is destroyed after testing to avoid NAT Gateway and Multi-AZ RDS costs, so there is no live URL. Screenshots of a working deployment are below.
 
-## Architecture Overview
-
-```
-                                   ┌─────────────────┐
-                                   │   CloudFront     │
-                                   │   (CDN)          │
-                                   └────────┬─────────┘
-                                            │
-                                   ┌────────▼─────────┐
-                                   │   S3 Bucket       │
-                                   │  (Static Frontend) │
-                                   └───────────────────┘
-
-                          Internet
-                             │
-                    ┌────────▼─────────┐
-                    │ Internet Gateway  │
-                    └────────┬──────────┘
-                             │
-                 ┌───────────▼────────────┐
-                 │   Application Load      │
-                 │   Balancer (Public)     │
-                 └───────────┬─────────────┘
-                             │
-        ┌────────────────────┼────────────────────┐
-        │                    │                    │
-┌───────▼────────┐  ┌───────▼────────┐   ┌───────▼────────┐
-│  EC2 (AZ-1)     │  │  EC2 (AZ-2)     │  ...  Auto Scaling
-│  Private Subnet │  │  Private Subnet │       (min 2 / max 5,
-│  Node.js App    │  │  Node.js App    │        70% CPU target)
-└───────┬─────────┘  └───────┬─────────┘
-        │                    │
-        └──────────┬─────────┘
-                    │
-           ┌────────▼─────────┐
-           │   RDS MySQL        │
-           │   Multi-AZ          │
-           │   Private Subnet    │
-           └─────────────────────┘
-
-  NAT Gateway → gives private subnets outbound-only internet access
-  Secrets Manager → stores DB credentials (no hardcoded passwords)
-  CloudWatch + EventBridge + SNS → alarms & notifications
-  CloudTrail → full audit logging of all API activity
-```
-
----
-
-## Tech Stack & AWS Services
-
-| Layer | Service | Purpose |
-|---|---|---|
-| Identity & Access | **IAM** | Least-privilege roles/policies for EC2 and services |
-| Networking | **VPC** | Custom VPC — 2 public + 2 private subnets across 2 AZs |
-| Networking | **Internet Gateway / NAT Gateway** | Public internet access / private outbound access |
-| Compute | **EC2** | Node.js backend running in private subnets |
-| Compute | **Auto Scaling Group** | Min 2 / Max 5 instances, target-tracking scaling at 70% CPU |
-| Traffic | **Application Load Balancer** | Routes public traffic to healthy backend instances |
-| Database | **RDS (MySQL, Multi-AZ)** | Managed relational database in private subnets |
-| Frontend | **S3 (Static Website Hosting)** | Hosts the static frontend |
-| Delivery | **CloudFront** | CDN in front of S3 for global content delivery |
-| Monitoring | **CloudWatch + EventBridge + SNS** | Metric alarms routed via events to email notifications |
-| Auditing | **CloudTrail** | Multi-region audit trail of all account activity |
-| Secrets | **Secrets Manager** | Securely stores and rotates DB credentials |
-| IaC | **Terraform** | 100% infrastructure as code, fully reproducible |
-| CI/CD | **GitHub Actions + AWS SSM** | Automated deploys to S3 (frontend) and EC2 (backend) without SSH |
-
----
-
-## Repository Structure
-
-This project is split across two repositories by design — infrastructure and application code are decoupled, matching real-world DevOps practice:
-
-- 📦 **This repo** — Infrastructure as Code (Terraform)
-- 🚀 **[app-deployment-proj](https://github.com/ashone8/app-deployment-proj.git)** — Frontend + backend application code and the GitHub Actions CI/CD pipeline that deploys into this infrastructure
+## Architecture
 
 ```
-aws-terraform-project/     → Infrastructure as Code (this repo)
-├── providers.tf
-├── iam.tf
-├── vpc.tf
-├── ec2.tf
-├── alb.tf
-├── asg.tf
-├── rds.tf
-├── s3.tf
-├── cloudfront.tf
-├── cloudwatch.tf
-├── cloudtrail.tf
-├── secrets.tf
-└── outputs.tf
+Users ──► CloudFront ──► S3 (static frontend)
 
-app-deployment-proj/       → Application code (separate repo)
-├── frontend/
-│   ├── index.html
-│   └── error.html
-├── backend/
-│   ├── server.js
-│   └── package.json
-└── .github/workflows/
-    └── deploy.yml
+Users ──► Application Load Balancer (public subnets, port 80)
+              └──► EC2 Auto Scaling Group (private subnets, Node.js on port 3000)
+                        └──► RDS MySQL, Multi-AZ (private subnets)
+
+NAT Gateway ........ outbound internet for private subnets
+Secrets Manager .... database credentials
+CloudWatch ► EventBridge ► SNS .... alarms and email alerts
+CloudTrail ......... audit log of account activity
 ```
 
----
+| Tier | Implementation |
+|---|---|
+| Presentation | Static frontend on S3, served through CloudFront |
+| Application | Node.js on EC2, Auto Scaling Group behind an ALB |
+| Data | RDS MySQL, Multi-AZ |
 
-## Security Highlights
+## Repository layout
 
-- No hardcoded credentials — RDS password generated randomly and stored in **Secrets Manager**
-- Backend and database live entirely in **private subnets** — no direct internet exposure
-- Security groups follow least-privilege: ALB only accepts port 80 from the internet, EC2 only accepts traffic from the ALB, RDS only accepts traffic from EC2
-- IAM roles scoped to specific resource ARNs rather than wildcard permissions
-- All account activity logged via **CloudTrail** for auditability
-- Deployment to private EC2 instances handled via **AWS Systems Manager (SSM)** — no SSH keys or open port 22 required for CI/CD
+```
+infra/                 Terraform: VPC, ALB, ASG, RDS, S3, CloudFront, IAM, monitoring
+app/frontend/          Static frontend
+app/backend/           Node.js backend
+.github/workflows/
+  ci.yml               Terraform format and validate checks
+  cd.yml               Deploys the app to S3 and EC2
+```
 
----
+## CI/CD
 
-## CI/CD Pipeline
+- **CI** runs on every push and pull request: `terraform fmt -check`, `init`, and `validate`.
+- **CD** runs manually or when files under `app/` change on `main`:
+  1. Syncs `app/frontend` to the S3 bucket and invalidates the CloudFront cache.
+  2. Uses AWS Systems Manager (`send-command`) to run a deploy script on every instance in the Auto Scaling Group: pull the code, `npm install`, restart the app with PM2. No SSH or open port 22.
 
-GitHub Actions handles two deployment jobs on every push to `main`:
+Required GitHub secrets: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME`, `CLOUDFRONT_DISTRIBUTION_ID`.
 
-1. **Frontend deploy** — syncs the `frontend/` folder directly to the S3 bucket
-2. **Backend deploy** — uses `aws ssm send-command` to remotely pull the latest code and restart the Node.js app (via PM2) on the EC2 instances inside the Auto Scaling Group, with zero direct SSH access
+## Security
 
----
+- EC2 and RDS run in private subnets with no public IPs.
+- Security groups are chained: the internet reaches only the ALB (port 80), the ALB reaches EC2 (port 3000), and EC2 reaches RDS.
+- The database password is generated by Terraform (`random_password`) and stored in Secrets Manager. The EC2 role can read only that one secret.
+- Deployments and shell access go through SSM, so port 22 is closed.
+- CloudTrail records account activity.
 
-## How to Deploy This Infrastructure
+## Deploy
 
 ```bash
-git clone <this-repo-url>
-cd aws-terraform-project
-
-# Configure AWS credentials
-aws configure
-
+cd infra
 terraform init
-terraform plan
 terraform apply
+terraform output        # bucket name, CloudFront ID, ALB DNS, ASG name
 ```
 
-> ⚠️ **Cost note:** This architecture uses a NAT Gateway and Multi-AZ RDS, neither of which are covered by the AWS Free Tier. Run `terraform destroy` when you're done testing to avoid ongoing charges.
+Then add the four secrets to the GitHub repo and run **Actions → CD → Run workflow**.
 
----
+Update the alert email in `infra/cloudwatch.tf` before applying.
 
-## Notable Challenge Solved
+> **Cost warning:** the NAT Gateway and Multi-AZ RDS are not covered by the AWS Free Tier. Run `terraform destroy` when you're done.
 
-While provisioning EC2 instances via a Launch Template, Node.js installation repeatedly failed with `GLIBC_2.28 not found` errors — Amazon Linux 2's default glibc version (2.26) is incompatible with newer Node.js builds distributed via NodeSource. Root-caused by inspecting `/var/log/cloud-init-output.log` on the instance, then resolved by switching to a Node.js version whose prebuilt binary is compatible with Amazon Linux 2's glibc version, avoiding the dependency mismatch entirely.
+## Known limitations and next steps
 
----
+- The ALB listens on HTTP only. Next: HTTPS with an ACM certificate and a domain.
+- The frontend uses S3 website hosting. Next: a private bucket with CloudFront Origin Access Control.
+- CD authenticates with long-lived access keys. Next: GitHub OIDC with a scoped IAM role.
+- Next: remote Terraform state (S3 with locking).
 
 ## Author
 
-**Palash Dangat**
-Fresher DevOps & Cloud Engineer
+**Palash Dangat** · [GitHub](https://github.com/palash-dangat)
